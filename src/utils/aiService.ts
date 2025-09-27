@@ -1,75 +1,239 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Question, Answer } from '../types';
 
-// Mock AI service - In production, replace with actual AI API calls
-export class AIService {
-  private static questions: Question[] = [
-    // Easy questions
-    {
-      id: 'easy-1',
-      text: 'What is the difference between let, const, and var in JavaScript?',
-      difficulty: 'easy',
-      timeLimit: 20,
-    },
-    {
-      id: 'easy-2',
-      text: 'Explain what JSX is and how it differs from regular HTML.',
-      difficulty: 'easy',
-      timeLimit: 20,
-    },
-    // Medium questions
-    {
-      id: 'medium-1',
-      text: 'How would you handle state management in a large React application? Compare different approaches.',
-      difficulty: 'medium',
-      timeLimit: 60,
-    },
-    {
-      id: 'medium-2',
-      text: 'Explain the event loop in Node.js and how it handles asynchronous operations.',
-      difficulty: 'medium',
-      timeLimit: 60,
-    },
-    // Hard questions
-    {
-      id: 'hard-1',
-      text: 'Design a scalable architecture for a real-time chat application with millions of users. Consider both frontend and backend aspects.',
-      difficulty: 'hard',
-      timeLimit: 120,
-    },
-    {
-      id: 'hard-2',
-      text: 'Implement a custom React hook that manages a queue of API requests with retry logic and concurrent request limits.',
-      difficulty: 'hard',
-      timeLimit: 120,
-    },
-  ];
+// Initialize Gemini AI
+let genAI: GoogleGenerativeAI | null = null;
 
-  static async generateQuestions(): Promise<Question[]> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Return shuffled questions maintaining difficulty order
-    const easy = this.questions.filter(q => q.difficulty === 'easy').slice(0, 2);
-    const medium = this.questions.filter(q => q.difficulty === 'medium').slice(0, 2);
-    const hard = this.questions.filter(q => q.difficulty === 'hard').slice(0, 2);
-    
-    return [...easy, ...medium, ...hard];
+const initializeAI = () => {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('VITE_GEMINI_API_KEY environment variable is required');
+  }
+  if (!genAI) {
+    genAI = new GoogleGenerativeAI(apiKey);
+  }
+  return genAI;
+};
+
+export class AIService {
+  static async generateQuestions(resumeText: string): Promise<Question[]> {
+    try {
+      const ai = initializeAI();
+      const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+      const prompt = `You are an interviewer. Based on this resume content, generate 6 technical interview questions.
+      Resume:
+      ${resumeText}
+
+      Rules:
+      1. Create 2 easy, 2 medium, and 2 hard questions.
+      2. Each question should be practical and test real-world skills.
+      3. Return JSON array of objects like:
+      [
+        { "id": "easy-1", "text": "...", "difficulty": "easy", "timeLimit": 20 },
+        { "id": "easy-2", "text": "...", "difficulty": "easy", "timeLimit": 20 },
+        { "id": "medium-1", "text": "...", "difficulty": "medium", "timeLimit": 60 },
+        { "id": "medium-2", "text": "...", "difficulty": "medium", "timeLimit": 60 },
+        { "id": "hard-1", "text": "...", "difficulty": "hard", "timeLimit": 120 },
+        { "id": "hard-2", "text": "...", "difficulty": "hard", "timeLimit": 120 }
+      ]
+
+      Focus on full-stack development (React/Node.js) questions. Make sure the JSON is valid and properly formatted.`;
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+
+      // Extract JSON from the response
+      const jsonMatch = text.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        throw new Error('No valid JSON found in AI response');
+      }
+
+      const questions = JSON.parse(jsonMatch[0]);
+      
+      // Validate the structure
+      if (!Array.isArray(questions) || questions.length !== 6) {
+        throw new Error('Invalid questions format from AI');
+      }
+
+      return questions.map((q, index) => ({
+        id: q.id || `question-${index + 1}`,
+        text: q.text || q.question || 'Question not provided',
+        difficulty: q.difficulty || (index < 2 ? 'easy' : index < 4 ? 'medium' : 'hard'),
+        timeLimit: q.timeLimit || (index < 2 ? 20 : index < 4 ? 60 : 120),
+      }));
+
+    } catch (error) {
+      console.error('Error generating questions with Gemini:', error);
+      
+      // Fallback to default questions if AI fails
+      return this.getFallbackQuestions();
+    }
   }
 
   static async scoreAnswer(question: Question, answer: string, timeUsed: number): Promise<{ score: number; feedback: string }> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Mock scoring logic
+    try {
+      const ai = initializeAI();
+      const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+      const prompt = `You are an expert technical interviewer. Score this candidate's answer on a scale of 1-10.
+
+      Question: ${question.text}
+      Difficulty: ${question.difficulty}
+      Time Limit: ${question.timeLimit} seconds
+      Time Used: ${timeUsed} seconds
+      
+      Candidate's Answer: ${answer}
+
+      Please provide:
+      1. A score from 1-10 (10 being excellent)
+      2. Constructive feedback (2-3 sentences)
+
+      Consider:
+      - Technical accuracy
+      - Completeness of answer
+      - Time efficiency
+      - Practical understanding
+
+      Return your response in this exact JSON format:
+      {
+        "score": 8,
+        "feedback": "Your feedback here..."
+      }`;
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+
+      // Extract JSON from the response
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('No valid JSON found in AI response');
+      }
+
+      const evaluation = JSON.parse(jsonMatch[0]);
+      
+      return {
+        score: Math.max(1, Math.min(10, evaluation.score || 5)),
+        feedback: evaluation.feedback || 'Answer received and evaluated.',
+      };
+
+    } catch (error) {
+      console.error('Error scoring answer with Gemini:', error);
+      
+      // Fallback scoring logic
+      return this.getFallbackScore(question, answer, timeUsed);
+    }
+  }
+
+  static async generateSummary(answers: Answer[]): Promise<{ score: number; summary: string }> {
+    try {
+      const ai = initializeAI();
+      const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+      const answersText = answers.map((a, index) => 
+        `Question ${index + 1} (${a.difficulty}): ${a.question}
+        Answer: ${a.answer}
+        Score: ${a.score}/10
+        Time: ${a.timeUsed}s/${a.timeLimit}s`
+      ).join('\n\n');
+
+      const prompt = `You are an expert technical interviewer. Based on these interview answers, provide an overall assessment.
+
+      Interview Results:
+      ${answersText}
+
+      Please provide:
+      1. An overall score out of 100
+      2. A comprehensive summary (3-4 sentences) covering:
+         - Technical strengths and weaknesses
+         - Communication skills
+         - Overall recommendation
+
+      Return your response in this exact JSON format:
+      {
+        "score": 75,
+        "summary": "Your detailed summary here..."
+      }`;
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+
+      // Extract JSON from the response
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('No valid JSON found in AI response');
+      }
+
+      const evaluation = JSON.parse(jsonMatch[0]);
+      
+      return {
+        score: Math.max(0, Math.min(100, evaluation.score || 50)),
+        summary: evaluation.summary || 'Interview completed successfully.',
+      };
+
+    } catch (error) {
+      console.error('Error generating summary with Gemini:', error);
+      
+      // Fallback summary logic
+      return this.getFallbackSummary(answers);
+    }
+  }
+
+  // Fallback methods for when AI fails
+  private static getFallbackQuestions(): Question[] {
+    return [
+      {
+        id: 'easy-1',
+        text: 'What is the difference between let, const, and var in JavaScript?',
+        difficulty: 'easy',
+        timeLimit: 20,
+      },
+      {
+        id: 'easy-2',
+        text: 'Explain what JSX is and how it differs from regular HTML.',
+        difficulty: 'easy',
+        timeLimit: 20,
+      },
+      {
+        id: 'medium-1',
+        text: 'How would you handle state management in a large React application? Compare different approaches.',
+        difficulty: 'medium',
+        timeLimit: 60,
+      },
+      {
+        id: 'medium-2',
+        text: 'Explain the event loop in Node.js and how it handles asynchronous operations.',
+        difficulty: 'medium',
+        timeLimit: 60,
+      },
+      {
+        id: 'hard-1',
+        text: 'Design a scalable architecture for a real-time chat application with millions of users. Consider both frontend and backend aspects.',
+        difficulty: 'hard',
+        timeLimit: 120,
+      },
+      {
+        id: 'hard-2',
+        text: 'Implement a custom React hook that manages a queue of API requests with retry logic and concurrent request limits.',
+        difficulty: 'hard',
+        timeLimit: 120,
+      },
+    ];
+  }
+
+  private static getFallbackScore(question: Question, answer: string, timeUsed: number): { score: number; feedback: string } {
     const answerLength = answer.trim().length;
     const timeRatio = timeUsed / question.timeLimit;
     
     let baseScore = 0;
-    if (answerLength > 50) baseScore = 7;
-    else if (answerLength > 20) baseScore = 5;
-    else if (answerLength > 0) baseScore = 3;
+    if (answerLength > 100) baseScore = 7;
+    else if (answerLength > 50) baseScore = 5;
+    else if (answerLength > 20) baseScore = 3;
+    else if (answerLength > 0) baseScore = 2;
     
-    // Adjust based on time used
     const timeBonus = timeRatio < 0.5 ? 2 : timeRatio < 0.8 ? 1 : 0;
     const finalScore = Math.min(10, baseScore + timeBonus);
     
@@ -87,10 +251,7 @@ export class AIService {
     };
   }
 
-  static async generateSummary(answers: Answer[]): Promise<{ score: number; summary: string }> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
+  private static getFallbackSummary(answers: Answer[]): { score: number; summary: string } {
     const avgScore = answers.reduce((sum, answer) => sum + answer.score, 0) / answers.length;
     const totalScore = Math.round(avgScore * 10);
     

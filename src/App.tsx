@@ -90,7 +90,7 @@ function App() {
     if (missingFields.length > 0) {
       setIntervieweeStep('info_collection');
     } else {
-      await startInterview(candidateId);
+      await startInterview(candidateId, extractedInfo.text);
     }
   };
 
@@ -103,12 +103,13 @@ function App() {
       phone: info.phone,
     });
 
-    await startInterview(currentSession.candidateId);
+    const candidate = appData.candidates.find(c => c.id === currentSession.candidateId);
+    await startInterview(currentSession.candidateId, candidate?.resumeText || '');
   };
 
-  const startInterview = async (candidateId: string) => {
+  const startInterview = async (candidateId: string, resumeText: string) => {
     try {
-      const questions = await AIService.generateQuestions();
+      const questions = await AIService.generateQuestions(resumeText);
       
       setCurrentSession(prev => prev ? {
         ...prev,
@@ -194,7 +195,7 @@ function App() {
         setIntervieweeStep('upload');
       } else if (candidate.status === 'in_progress') {
         // Resume interview
-        startInterview(candidate.id);
+        startInterview(candidate.id, candidate.resumeText || '');
       } else {
         setIntervieweeStep('upload');
       }
