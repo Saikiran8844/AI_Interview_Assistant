@@ -288,6 +288,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
             onClick={() => handleSubmit()}
             disabled={!canType || !currentAnswer.trim()}
             className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            style={{ height:"97px"}}
           >
             <Send className="w-5 h-5" />
             Submit
