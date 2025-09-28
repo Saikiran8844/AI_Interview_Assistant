@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, MessageSquare, FileText, Trophy } from 'lucide-react';
+import { Users, MessageSquare, FileText, Trophy, Sun, Moon } from 'lucide-react';
 import { Candidate, InterviewSession, Question, Answer } from './types';
 import { loadData, saveData, AppData } from './utils/storage';
 import { extractResumeInfo } from './utils/resumeParser';
@@ -21,6 +21,11 @@ function App() {
   const [currentSession, setCurrentSession] = useState<InterviewSession | null>(null);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
+  const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  });
 
   // Load data on mount
   useEffect(() => {
@@ -41,6 +46,16 @@ function App() {
     saveData(appData);
   }, [appData]);
 
+  // Apply theme
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
   const updateCandidate = (candidateId: string, updates: Partial<Candidate>) => {
     setAppData(prev => ({
       ...prev,
@@ -108,6 +123,7 @@ function App() {
   };
 
   const startInterview = async (candidateId: string, resumeText: string) => {
+    setIsGeneratingQuestions(true);
     try {
       const questions = await AIService.generateQuestions(resumeText);
       
@@ -124,6 +140,8 @@ function App() {
       setIntervieweeStep('interview');
     } catch (error) {
       console.error('Failed to generate questions:', error);
+    } finally {
+      setIsGeneratingQuestions(false);
     }
   };
 
@@ -248,6 +266,7 @@ function App() {
               phone: candidate.phone,
             }}
             onInfoSubmit={handleInfoSubmit}
+            isGeneratingQuestions={isGeneratingQuestions}
           />
         );
       
@@ -266,18 +285,18 @@ function App() {
       case 'completed':
         return (
           <div className="text-center max-w-2xl mx-auto">
-            <div className="bg-white p-8 rounded-xl shadow-sm border">
+            <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-sm border dark:border-gray-700">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Trophy className="w-8 h-8 text-green-600" />
               </div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
                 Interview Completed!
               </h2>
-              <p className="text-lg text-gray-600 mb-8">
+              <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
                 Thank you for completing the technical interview. Your responses have been recorded and will be reviewed by our team.
               </p>
-              <div className="bg-gray-50 rounded-lg p-6 mb-6">
-                <p className="text-gray-700">
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 mb-6">
+                <p className="text-gray-700 dark:text-gray-300">
                   You should hear back from us within 2-3 business days. We'll reach out via email with next steps.
                 </p>
               </div>
@@ -313,7 +332,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
       {/* Welcome Back Modal */}
       {showWelcomeBack && appData.currentCandidateId && (
         <WelcomeBackModal
@@ -324,25 +343,34 @@ function App() {
       )}
 
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <Users className="w-5 h-5 text-white" />
               </div>
-              <h1 className="text-xl font-bold text-gray-900">
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">
                 AI Interview Assistant
               </h1>
             </div>
 
-            <nav className="flex space-x-1">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setIsDarkMode(!isDarkMode)}
+                className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </button>
+              
+              <nav className="flex space-x-1">
               <button
                 onClick={() => setActiveTab('interviewee')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                   activeTab === 'interviewee'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
               >
                 <MessageSquare className="w-5 h-5" />
@@ -353,8 +381,8 @@ function App() {
                 onClick={() => setActiveTab('interviewer')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                   activeTab === 'interviewer'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
               >
                 <Users className="w-5 h-5" />
@@ -365,7 +393,8 @@ function App() {
                   </span>
                 )}
               </button>
-            </nav>
+              </nav>
+            </div>
           </div>
         </div>
       </header>

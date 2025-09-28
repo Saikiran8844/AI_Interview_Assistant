@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Mail, Phone, ArrowRight } from 'lucide-react';
+import { User, Mail, Phone, ArrowRight, Loader2 } from 'lucide-react';
 
 interface InfoCollectionProps {
   missingFields: string[];
@@ -9,12 +9,14 @@ interface InfoCollectionProps {
     phone?: string;
   };
   onInfoSubmit: (info: { name: string; email: string; phone: string }) => void;
+  isGeneratingQuestions?: boolean;
 }
 
 const InfoCollection: React.FC<InfoCollectionProps> = ({
   missingFields,
   currentInfo,
   onInfoSubmit,
+  isGeneratingQuestions = false,
 }) => {
   const [formData, setFormData] = useState({
     name: currentInfo.name || '',
@@ -42,6 +44,8 @@ const InfoCollection: React.FC<InfoCollectionProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (isGeneratingQuestions) return;
     
     const newErrors: { [key: string]: string } = {};
     
@@ -110,19 +114,20 @@ const InfoCollection: React.FC<InfoCollectionProps> = ({
                 type={field === 'email' ? 'email' : field === 'phone' ? 'tel' : 'text'}
                 value={formData[field]}
                 onChange={(e) => handleInputChange(field, e.target.value)}
+                disabled={isGeneratingQuestions}
                 className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
                   errors[field] 
                     ? 'border-red-500 bg-red-50' 
                     : missingFields.includes(field)
                     ? 'border-orange-300 bg-orange-50'
                     : 'border-gray-300'
+                } ${isGeneratingQuestions ? 'opacity-50 cursor-not-allowed' : ''}`}
                 }`}
                 placeholder={
                   field === 'name' ? 'Enter your full name' :
                   field === 'email' ? 'Enter your email address' :
                   'Enter your phone number'
                 }
-                disabled={!missingFields.includes(field) && formData[field]}
               />
             </div>
             {errors[field] && (
@@ -138,10 +143,24 @@ const InfoCollection: React.FC<InfoCollectionProps> = ({
 
         <button
           type="submit"
-          className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          disabled={isGeneratingQuestions}
+          className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-colors ${
+            isGeneratingQuestions
+              ? 'bg-gray-400 cursor-not-allowed'
+              : 'bg-blue-600 hover:bg-blue-700'
+          } text-white`}
         >
-          Start Interview
-          <ArrowRight className="w-5 h-5" />
+          {isGeneratingQuestions ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Generating Questions...
+            </>
+          ) : (
+            <>
+              Start Interview
+              <ArrowRight className="w-5 h-5" />
+            </>
+          )}
         </button>
       </form>
 
