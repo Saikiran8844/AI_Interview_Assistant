@@ -5,7 +5,7 @@ const GEMINI_MODEL = 'gemini-1.5-flash';
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1';
 
 async function callGemini(prompt: string): Promise<string> {
-  const apiKey =  '';
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error('VITE_GEMINI_API_KEY environment variable is required');
   }
@@ -122,21 +122,29 @@ export class AIService {
       - Time efficiency
       - Practical understanding
 
-      Return your response in this exact JSON format:
+      Return ONLY a valid JSON object in this exact format:
       {
         "score": 8,
         "feedback": "Your feedback here..."
       }`;
 
       const text = await callGemini(prompt);
+      console.log('Raw Gemini response for scoring:', text);
 
       // Extract JSON from the response
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
+        console.error('No JSON object found in response:', text);
         throw new Error('No valid JSON found in AI response');
       }
 
-      const evaluation = JSON.parse(jsonMatch[0]);
+      let evaluation;
+      try {
+        evaluation = JSON.parse(jsonMatch[0]);
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError, 'Raw JSON:', jsonMatch[0]);
+        throw new Error('Invalid JSON format from AI');
+      }
 
       return {
         score: Math.max(1, Math.min(10, evaluation.score || 5)),
@@ -176,21 +184,29 @@ export class AIService {
          - Communication skills
          - Overall recommendation
 
-      Return your response in this exact JSON format:
+      Return ONLY a valid JSON object in this exact format:
       {
         "score": 75,
         "summary": "Your detailed summary here..."
       }`;
 
       const text = await callGemini(prompt);
+      console.log('Raw Gemini response for summary:', text);
 
       // Extract JSON from the response
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
+        console.error('No JSON object found in response:', text);
         throw new Error('No valid JSON found in AI response');
       }
 
-      const evaluation = JSON.parse(jsonMatch[0]);
+      let evaluation;
+      try {
+        evaluation = JSON.parse(jsonMatch[0]);
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError, 'Raw JSON:', jsonMatch[0]);
+        throw new Error('Invalid JSON format from AI');
+      }
 
       return {
         score: Math.max(0, Math.min(100, evaluation.score || 50)),
