@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send, Bot, User, Clock } from 'lucide-react';
 import { Question, Answer } from '../types';
 import { useTimer } from '../hooks/useTimer';
-import { AIService } from '../utils/aiService';
 import TimerDisplay from './TimerDisplay';
 
 interface InterviewChatProps {
