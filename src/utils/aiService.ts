@@ -1,7 +1,7 @@
 import { Question, Answer } from '../types';
 
 // Gemini REST API helper (avoids SDK to prevent ConsoleInspector issues)
-const GEMINI_MODEL = 'gemini-1.5-flash';
+const GEMINI_MODEL = 'gemini-2.5-flash'; // Correct model for REST API v1
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1';
 
 async function callGemini(prompt: string): Promise<string> {
