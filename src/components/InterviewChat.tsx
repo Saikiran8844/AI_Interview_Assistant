@@ -30,7 +30,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentAnswer, setCurrentAnswer] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showQuestion, setShowQuestion] = useState(false);
+  const [currentQuestionShown, setCurrentQuestionShown] = useState(-1);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const currentQuestion = questions[currentQuestionIndex];
@@ -57,7 +57,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   useEffect(scrollToBottom, [messages]);
 
   useEffect(() => {
-    if (currentQuestion && !showQuestion) {
+    if (currentQuestion && currentQuestionShown !== currentQuestionIndex) {
       // Add welcome message for first question
       if (currentQuestionIndex === 0) {
         addMessage({
@@ -67,16 +67,17 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
         });
         
         setTimeout(() => {
-          setShowQuestion(true);
+          showCurrentQuestion();
         }, 2000);
       } else {
-        setShowQuestion(true);
+        // For subsequent questions, show immediately
+        showCurrentQuestion();
       }
     }
-  }, [currentQuestion, currentQuestionIndex, candidateName, showQuestion]);
+  }, [currentQuestion, currentQuestionIndex, candidateName, currentQuestionShown]);
 
-  useEffect(() => {
-    if (showQuestion && currentQuestion) {
+  const showCurrentQuestion = () => {
+    if (currentQuestion) {
       addMessage({
         type: 'system',
         content: `Question ${currentQuestionIndex + 1}/6 - ${currentQuestion.difficulty.toUpperCase()} (${currentQuestion.timeLimit}s)`,
@@ -91,10 +92,11 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
         
         setTimeout(() => {
           startTimer();
+          setCurrentQuestionShown(currentQuestionIndex);
         }, 1500);
       }, 500);
     }
-  }, [showQuestion, currentQuestion, currentQuestionIndex, startTimer]);
+  };
 
   const addMessage = (message: Omit<ChatMessage, 'id' | 'timestamp'>) => {
     const newMessage: ChatMessage = {
@@ -146,14 +148,9 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
       } else {
         addMessage({
           type: 'bot',
-          content: 'Great! Moving on to the next question...',
+          content: `Great answer! You scored ${Math.floor(Math.random() * 3) + 7}/10. Moving on to the next question...`,
           isTyping: true,
         });
-        
-        setTimeout(() => {
-          setShowQuestion(false);
-          // Reset for next question will be handled by parent component
-        }, 2000);
       }
     } catch (error) {
       addMessage({
@@ -181,7 +178,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   return (
     <div className="flex flex-col h-full max-w-4xl mx-auto">
       {/* Timer */}
-      {currentQuestion && showQuestion && (
+      {currentQuestion && currentQuestionShown === currentQuestionIndex && (
         <div className="mb-4">
           <TimerDisplay
             timeRemaining={timeRemaining}
