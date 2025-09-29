@@ -9,12 +9,14 @@ interface InfoCollectionProps {
     phone?: string;
   };
   onInfoSubmit: (info: { name: string; email: string; phone: string }) => void;
+  isGeneratingQuestions: boolean;
 }
 
 const InfoCollection: React.FC<InfoCollectionProps> = ({
   missingFields,
   currentInfo,
   onInfoSubmit,
+  isGeneratingQuestions,
 }) => {
   const [formData, setFormData] = useState({
     name: currentInfo.name || '',
@@ -122,7 +124,7 @@ const InfoCollection: React.FC<InfoCollectionProps> = ({
                   field === 'email' ? 'Enter your email address' :
                   'Enter your phone number'
                 }
-                disabled={!missingFields.includes(field) && formData[field]}
+                disabled={(!missingFields.includes(field) && formData[field]) || isGeneratingQuestions}
               />
             </div>
             {errors[field] && (
@@ -138,10 +140,24 @@ const InfoCollection: React.FC<InfoCollectionProps> = ({
 
         <button
           type="submit"
-          className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          disabled={isGeneratingQuestions}
+          className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg transition-colors font-medium ${
+            isGeneratingQuestions
+              ? 'bg-gray-400 cursor-not-allowed text-white'
+              : 'bg-blue-600 text-white hover:bg-blue-700'
+          }`}
         >
-          Start Interview
-          <ArrowRight className="w-5 h-5" />
+          {isGeneratingQuestions ? (
+            <>
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              Generating Questions...
+            </>
+          ) : (
+            <>
+              Start Interview
+              <ArrowRight className="w-5 h-5" />
+            </>
+          )}
         </button>
       </form>
 
