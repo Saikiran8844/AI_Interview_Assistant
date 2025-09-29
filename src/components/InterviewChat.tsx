@@ -59,7 +59,7 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
   useEffect(() => {
     if (currentQuestion && currentQuestionShown !== currentQuestionIndex) {
       // Add welcome message for first question
-      if (currentQuestionIndex === 0) {
+      if (currentQuestionIndex === 0 && messages.length === 0) {
         addMessage({
           type: 'bot',
           content: `Hello ${candidateName}! Welcome to your technical interview. We'll go through 6 questions of increasing difficulty. Let's start with the first question.`,
@@ -69,6 +69,17 @@ const InterviewChat: React.FC<InterviewChatProps> = ({
         setTimeout(() => {
           showCurrentQuestion();
         }, 2000);
+      } else if (currentQuestionIndex > 0 && messages.length === 0) {
+        // Resuming from a later question
+        addMessage({
+          type: 'bot',
+          content: `Welcome back ${candidateName}! Let's continue with question ${currentQuestionIndex + 1}.`,
+          isTyping: true,
+        });
+        
+        setTimeout(() => {
+          showCurrentQuestion();
+        }, 1500);
       } else {
         // For subsequent questions, show immediately
         showCurrentQuestion();

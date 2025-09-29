@@ -125,6 +125,9 @@ function App() {
   const startInterview = async (candidateId: string, resumeText: string) => {
     setIsGeneratingQuestions(true);
     try {
+      const candidate = appData.candidates.find(c => c.id === candidateId);
+      if (!candidate) return;
+
       const questions = await AIService.generateQuestions(resumeText);
       
       setCurrentSession(prev => prev ? {
@@ -133,9 +136,12 @@ function App() {
         questions,
       } : null);
 
-      updateCandidate(candidateId, {
-        status: 'in_progress',
-      });
+      // Only update status if not already in progress
+      if (candidate.status !== 'in_progress') {
+        updateCandidate(candidateId, {
+          status: 'in_progress',
+        });
+      }
 
       setIntervieweeStep('interview');
     } catch (error) {
