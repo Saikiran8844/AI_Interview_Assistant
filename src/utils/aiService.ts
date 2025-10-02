@@ -32,7 +32,8 @@ async function callGemini(prompt: string): Promise<string> {
 
   if (!resp.ok) {
     const errText = await resp.text().catch(() => '');
-    throw new Error(`Gemini API error ${resp.status}: ${errText || resp.statusText}`);
+    console.warn(`Gemini API error ${resp.status}: ${errText || resp.statusText}. Using fallback response.`);
+    return getFallbackGeminiResponse(prompt);
   }
 
   const data: any = await resp.json();
@@ -42,7 +43,8 @@ async function callGemini(prompt: string): Promise<string> {
       .join('') ?? '';
 
   if (!text) {
-    throw new Error('Empty response from Gemini API');
+    console.warn('Empty response from Gemini API. Using fallback response.');
+    return getFallbackGeminiResponse(prompt);
   }
 
   return text;
